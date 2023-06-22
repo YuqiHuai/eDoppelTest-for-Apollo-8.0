@@ -15,10 +15,12 @@ from .proto_v8.modules.common_msgs.routing_msgs.routing_pb2 import (
 
 
 class ApolloRunner:
-    def __init__(self, aid: int, ctn: ApolloContainer) -> None:
-        self.aid = aid
+    def __init__(self, rid: int, ctn: ApolloContainer) -> None:
+        self.rid = rid
         self.container = ctn
         self.last_localization: Optional[LocalizationEstimate] = None
+        self.dest_x: Optional[float] = None
+        self.dest_y: Optional[float] = None
 
     def register_publishers(self):
         assert self.container is not None, "Bridge not initialized"
@@ -41,14 +43,21 @@ class ApolloRunner:
         self.container.start_ads_modules()
         self.container.start_sim_control(x, y, heading)
         self.container.start_bridge()
+        assert self.container.bridge, "Bridge not initialized"
         self.container.bridge.spin()
         self.register_publishers()
         self.register_subscribers()
 
-    def send_routing_request(self, target_x: float, target_y: float):
+    def set_destination(self, x: float, y: float):
+        self.dest_x = x
+        self.dest_y = y
+
+    def send_routing_request(self):
         assert self.last_localization, "Localization not received"
         assert self.container.bridge, "Bridge not initialized"
-
+        assert (
+            self.dest_x is not None and self.dest_y is not None
+        ), "Destination not set"
         current_x = self.last_localization.pose.position.x
         current_y = self.last_localization.pose.position.y
         current_heading = self.last_localization.pose.heading
@@ -65,7 +74,7 @@ class ApolloRunner:
                     heading=current_heading,
                 ),
                 LaneWaypoint(
-                    pose=PointENU(x=target_x, y=target_y, z=0.0),
+                    pose=PointENU(x=self.dest_x, y=self.dest_y, z=0.0),
                 ),
             ],
         )

@@ -31,6 +31,12 @@ class PositionEstimate:
     lane_id: str
     s: float
 
+    def __hash__(self) -> int:
+        return hash((self.lane_id, self.s))
+
+    def to_json(self):
+        return {"lane_id": self.lane_id, "s": self.s}
+
 
 def is_allowed_to_cross(boundary: LaneBoundary):
     for boundary_type in boundary.boundary_type:

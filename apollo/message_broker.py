@@ -1,10 +1,13 @@
 import time
 from threading import Thread
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from .apollo_runner import ApolloRunner
 from .cyber_bridge import Channel, Channels
 from .proto_v8.modules.common_msgs.basic_msgs.header_pb2 import Header
+from .proto_v8.modules.common_msgs.localization_msgs.localization_pb2 import (
+    LocalizationEstimate,
+)
 from .proto_v8.modules.common_msgs.perception_msgs.perception_obstacle_pb2 import (
     PerceptionObstacles,
 )
@@ -37,7 +40,7 @@ class MessageBroker:
             if runner.container.bridge:
                 runner.container.bridge.publish(channel, data)
 
-    def _spin(self):
+    def _spin(self) -> None:
         """
         Helper function to start forwarding localization
         """
@@ -45,10 +48,10 @@ class MessageBroker:
         curr_time = 0.0
         while self.spinning:
             # retrieve localization of running instances
-            locations = dict()
+            locations: Dict[int, LocalizationEstimate] = dict()
             for runner in self.runners:
                 if runner.last_localization:
-                    locations[runner.nid] = runner.last_localization
+                    locations[runner.rid] = runner.last_localization
 
             # convert localization into obstacles
             obs = dict()
@@ -59,7 +62,7 @@ class MessageBroker:
 
             # publish obstacle to all running instances
             for runner in self.runners:
-                perception_obs = [obs[x] for x in obs if x != runner.nid]
+                perception_obs = [obs[x] for x in obs if x != runner.rid]
                 header = Header(
                     timestamp_sec=time.time(),
                     module_name="eDoppelTest",
@@ -69,6 +72,7 @@ class MessageBroker:
                     header=header,
                     perception_obstacle=perception_obs,
                 )
+                assert runner.container.bridge, "Bridge is not initialized"
                 runner.container.bridge.publish(
                     Channels.Obstacles, bag.SerializeToString()
                 )

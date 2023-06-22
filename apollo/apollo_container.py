@@ -128,8 +128,18 @@ class ApolloContainer:
         self.exec("bash /apollo/scripts/bridge.sh", detached=True)
         ip_address = self.container_ip()
         if ip_address != "":
-            time.sleep(1)
-            self.bridge = CyberBridge(self.container_ip())
+            trial = 0
+            max_trial = 3
+            while trial < 3:
+                try:
+                    self.bridge = CyberBridge(ip_address)
+                    return
+                except ConnectionRefusedError:
+                    time.sleep(0.5)
+                    trial += 1
+            raise ConnectionRefusedError(
+                f"Cannot connect to CyberBridge after {max_trial} trials."
+            )
 
     def start_planning(self):
         self.exec("bash /apollo/scripts/planning.sh start")
@@ -163,7 +173,7 @@ class ApolloContainer:
     def start_replay(self, filename: str):
         # cyber_recorder play -f <file>
         cyber_recorder = "/apollo/bazel-bin/cyber/tools/cyber_recorder/cyber_recorder"
-        cmd = f"{cyber_recorder} play -f {filename} --log_dir=/apollo/data/log"
+        cmd = f"{cyber_recorder} play -f {filename}"
         self.exec(cmd, detached=True)
 
     def stop_replay(self):
@@ -173,7 +183,7 @@ class ApolloContainer:
     def start_recorder(self, filename: str):
         # cyber_recorder record -o <file>
         cyber_recorder = "/apollo/bazel-bin/cyber/tools/cyber_recorder/cyber_recorder"
-        cmd = f"{cyber_recorder} record -a -o {filename} --log_dir=/apollo/data/log"
+        cmd = f"{cyber_recorder} record -a -o {filename}"
         self.exec(cmd, detached=True)
 
     def stop_recorder(self):
