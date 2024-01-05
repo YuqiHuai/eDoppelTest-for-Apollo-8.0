@@ -11,7 +11,7 @@ from .proto_v8.modules.common_msgs.localization_msgs.localization_pb2 import (
 from .proto_v8.modules.common_msgs.perception_msgs.perception_obstacle_pb2 import (
     PerceptionObstacles,
 )
-from .utils import localization_to_obstacle, obstacle_to_polygon
+from .utils import localization_to_obstacle
 
 
 class MessageBroker:
@@ -55,10 +55,8 @@ class MessageBroker:
 
             # convert localization into obstacles
             obs = dict()
-            obs_poly = dict()
             for k in locations:
                 obs[k] = localization_to_obstacle(k, locations[k])
-                obs_poly[k] = obstacle_to_polygon(obs[k])
 
             # publish obstacle to all running instances
             for runner in self.runners:

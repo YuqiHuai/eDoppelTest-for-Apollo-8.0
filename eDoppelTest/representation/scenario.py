@@ -1,8 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
-
+from deap import base
 from .traffic_control import TrafficControl
 from .vehicle import Vehicle
+
+
+class ScenarioFitness(base.Fitness):
+    weights = (-1.0,)
 
 
 @dataclass
@@ -10,6 +14,8 @@ class Scenario:
     scenario_id: str
     vehicles: List[Vehicle]
     traffic_control: TrafficControl
+
+    fitness: base.Fitness = field(default_factory=ScenarioFitness)
 
     def __hash__(self) -> int:
         return hash((self.scenario_id, tuple(self.vehicles)))

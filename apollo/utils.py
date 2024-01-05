@@ -1,5 +1,6 @@
 import math
-from typing import List, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 from .proto_v8.modules.common_msgs.basic_msgs.geometry_pb2 import Point3D
 from .proto_v8.modules.common_msgs.localization_msgs.localization_pb2 import (
@@ -8,12 +9,23 @@ from .proto_v8.modules.common_msgs.localization_msgs.localization_pb2 import (
 from .proto_v8.modules.common_msgs.perception_msgs.perception_obstacle_pb2 import (
     PerceptionObstacle,
 )
+from .proto_v8.modules.common_msgs.planning_msgs.decision_pb2 import (
+    MainDecision,
+    ObjectDecisions,
+)
+from .proto_v8.modules.common_msgs.planning_msgs.planning_pb2 import ADCTrajectory
 
 APOLLO_VEHICLE_LENGTH = 4.933
 APOLLO_VEHICLE_WIDTH = 2.11
 APOLLO_VEHICLE_HEIGHT = 1.48
 APOLLO_VEHICLE_back_edge_to_center = 1.043
 PERCEPTION_FREQUENCY = 10
+
+
+@dataclass
+class DecisionSummary:
+    main_decision: Optional[str]
+    object_decision: Optional[Dict[str, str]]
 
 
 def to_Point3D(data: Point3D) -> Point3D:
@@ -67,7 +79,7 @@ def localization_to_obstacle(
     return obs
 
 
-def obstacle_to_polygon(obs: PerceptionObstacle) -> List[Tuple[float, float]]:
+def generate_obs_polygon(obs: PerceptionObstacle) -> List[Tuple[float, float]]:
     """
     Constructs a polygon for an obstacle
 
@@ -76,7 +88,7 @@ def obstacle_to_polygon(obs: PerceptionObstacle) -> List[Tuple[float, float]]:
     :returns: a list of tuples representing the polygon
     :rtype: List[Tuple[float, float]]
     """
-    return [(p.x, p.y) for p in obs.polygon_point]
+    return obs.polygon_point
 
 
 def generate_adc_polygon(position: Point3D, theta: float) -> List[Point3D]:
@@ -110,3 +122,57 @@ def generate_adc_polygon(position: Point3D, theta: float) -> List[Point3D]:
         p.z = position.z
         points.append(p)
     return points
+
+
+def extract_main_decision(md: MainDecision) -> Optional[str]:
+    options = [
+        "cruise",
+        "stop",
+        "estop",
+        "change_lane",
+        "mission_complete",
+        "not_ready",
+        "parking",
+    ]
+    for op in options:
+        if md.HasField(op):
+            return op
+    return None
+
+
+def extract_object_decision(ods: ObjectDecisions):
+    result = dict()
+    for od in ods.decision:
+        oid = od.id
+        options = [
+            "ignore",
+            "stop",
+            "follow",
+            "yield",
+            "overtake",
+            "nudge",
+            "avoid",
+            "side_pass",
+        ]
+        decisions = []
+        for object_decision in od.object_decision:
+            for op in options:
+                if object_decision.HasField(op):
+                    decisions.append(op)
+        result[oid] = frozenset(decisions)
+    return result
+
+
+def extract_decision(d: ADCTrajectory) -> Optional[DecisionSummary]:
+    if d.HasField("decision"):
+        if d.decision.HasField("main_decision"):
+            main_decision = extract_main_decision(d.decision.main_decision)
+        else:
+            main_decision = None
+
+        if d.decision.HasField("object_decision"):
+            object_decision = extract_object_decision(d.decision.object_decision)
+        else:
+            object_decision = None
+        return DecisionSummary(main_decision, object_decision)
+    return None
