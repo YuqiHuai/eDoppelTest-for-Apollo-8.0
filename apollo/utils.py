@@ -1,5 +1,10 @@
+import glob
 import math
+import os
+import subprocess
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .proto_v8.modules.common_msgs.basic_msgs.geometry_pb2 import Point3D
@@ -176,3 +181,107 @@ def extract_decision(d: ADCTrajectory) -> Optional[DecisionSummary]:
             object_decision = None
         return DecisionSummary(main_decision, object_decision)
     return None
+
+
+def calculate_velocity(linear_velocity: Point3D) -> float:
+    """
+    Calculate velocity based on a given vector
+
+    :param Point3D linear_velocity: velocity in vector form
+
+    :returns: speed calculated from the velocity
+    :rtype: float
+    """
+    x, y, z = linear_velocity.x, linear_velocity.y, linear_velocity.z
+    return round(math.sqrt(x**2 + y**2), 2)
+
+
+def pedestrian_location_to_obstacle(
+    _id: int, speed: float, loc: Point3D, heading: float
+) -> PerceptionObstacle:
+    """
+    Constructs a perception obstacle message for a pedestrian
+
+    :param int _id: ID of the obstacle
+    :param float speed: speed of the obstacle
+    :param Point3D loc: location of the obstacle
+    :param float heading: heading of the obstacle
+
+    :returns: a PerceptionObstacle protobuf message ready to be published to cyberRT
+    :rtype: PerceptionObstacle
+    """
+    position = Point3D(x=loc.x, y=loc.y, z=loc.z)
+    velocity = Point3D(x=math.cos(heading) * speed, y=math.sin(heading) * speed, z=0.0)
+    obs = PerceptionObstacle(
+        id=_id,
+        position=position,
+        theta=heading,
+        velocity=velocity,
+        acceleration=Point3D(x=0, y=0, z=0),
+        length=0.3,
+        width=0.5,
+        height=1.75,
+        type=PerceptionObstacle.PEDESTRIAN,
+        timestamp=time.time(),
+        tracking_time=1.0,
+        polygon_point=generate_polygon(position, heading, 0.3, 0.5),
+    )
+    return obs
+
+
+def clean_appolo_dir(apollo_root: Path):
+    """
+    Removes Apollo's log files to save disk space
+    """
+    # remove data dir
+    subprocess.run(f"rm -rf {apollo_root}/data".split())
+
+    # remove records dir
+    subprocess.run(f"rm -rf {apollo_root}/records".split())
+
+    # remove logs
+    fileList = glob.glob(f"{apollo_root}/*.log.*")
+    for filePath in fileList:
+        os.remove(filePath)
+
+    # create data dir
+    subprocess.run(f"mkdir {apollo_root}/data".split())
+    subprocess.run(f"mkdir {apollo_root}/data/bag".split())
+    subprocess.run(f"mkdir {apollo_root}/data/log".split())
+    subprocess.run(f"mkdir {apollo_root}/data/core".split())
+    subprocess.run(f"mkdir {apollo_root}/records".split())
+
+
+def generate_polygon(
+    position: Point3D, theta: float, length: float, width: float
+) -> List[Point3D]:
+    """
+    Generate polygon for a perception obstacle
+
+    :param Point3D position: the position of the obstacle
+    :param float theta: the heading of the obstacle
+    :param float length: the length of the obstacle
+    :param float width: the width of the obstacle
+
+    :returns:
+        List with 4 Point3D objects representing the polygon of the obstacle
+    :rtype: List[Point3D]
+    """
+    points = []
+    half_l = length / 2.0
+    half_w = width / 2.0
+    sin_h = math.sin(theta)
+    cos_h = math.cos(theta)
+    vectors = [
+        (half_l * cos_h - half_w * sin_h, half_l * sin_h + half_w * cos_h),
+        (-half_l * cos_h - half_w * sin_h, -half_l * sin_h + half_w * cos_h),
+        (-half_l * cos_h + half_w * sin_h, -half_l * sin_h - half_w * cos_h),
+        (half_l * cos_h + half_w * sin_h, half_l * sin_h - half_w * cos_h),
+    ]
+    for x, y in vectors:
+        p = Point3D()
+        p.x = position.x + x
+        p.y = position.y + y
+        p.z = position.z
+        points.append(p)
+    return points

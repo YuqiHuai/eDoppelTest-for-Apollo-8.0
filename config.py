@@ -32,3 +32,12 @@ LOGGING_FORMAT = (
     "<cyan>{file}:{line}</cyan>] "
     "<bold>{message}</bold>"
 )
+
+HD_MAP = "borregas_ave"
+
+INSTANCE_MAX_WAIT_TIME = 5
+MAX_ADC_COUNT = 2
+MAX_PD_COUNT = 2
+SCENARIO_UPPER_LIMIT = 30
+FORCE_INVALID_TRAFFIC_CONTROL = False
+RUN_FOR_HOUR = 1

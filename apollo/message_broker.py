@@ -50,8 +50,8 @@ class MessageBroker:
             # retrieve localization of running instances
             locations: Dict[int, LocalizationEstimate] = dict()
             for runner in self.runners:
-                if runner.last_localization:
-                    locations[runner.rid] = runner.last_localization
+                if runner.localization:
+                    locations[runner.nid] = runner.localization
 
             # convert localization into obstacles
             obs = dict()
@@ -60,7 +60,7 @@ class MessageBroker:
 
             # publish obstacle to all running instances
             for runner in self.runners:
-                perception_obs = [obs[x] for x in obs if x != runner.rid]
+                perception_obs = [obs[x] for x in obs if x != runner.nid]
                 header = Header(
                     timestamp_sec=time.time(),
                     module_name="eDoppelTest",

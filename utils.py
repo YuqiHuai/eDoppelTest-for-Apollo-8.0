@@ -1,15 +1,29 @@
 import os
+import random
 import string
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 from absl import flags
 from absl.flags import FLAGS
 from loguru import logger
 from nanoid import generate
 
-from config import LOGGING_FORMAT, PROJECT_NAME, PROJECT_ROOT
+from apollo.map_service import MapService
+from config import DATA_DIR, LOGGING_FORMAT, PROJECT_NAME, PROJECT_ROOT
+
+_loaded_map_services = {}
+
+
+def get_map_service_for_map(map_name: str):
+    if map_name in _loaded_map_services:
+        return _loaded_map_services[map_name]
+    ms = MapService()
+    ms.load_map_from_file(Path(DATA_DIR, "maps", map_name, "base_map.bin"))
+    _loaded_map_services[map_name] = ms
+    return ms
 
 
 def generate_id(size=5):
@@ -65,3 +79,15 @@ def set_up_logging(level: str | int) -> None:
         level=level,
         enqueue=True,
     )
+
+
+def random_numeric_id(length=5) -> List[int]:
+    """
+    Generates a list of random integer ids
+
+    :param int length: expected length of the ID
+
+    :returns: list of integer ids
+    :rtype: List[int]
+    """
+    return sorted(random.sample(range(100000, 999999), k=length))
