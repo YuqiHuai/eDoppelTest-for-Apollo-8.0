@@ -63,6 +63,15 @@ class Scenario:
             "tc_section": asdict(self.tc_section),
         }
 
+    def save_to_file(self, json_file_path: str) -> None:
+        """
+        Saves the chromosome to a JSON file
+
+        :param str json_file_path: name of the JSON file
+        """
+        with open(json_file_path, "w") as fp:
+            json.dump(self.to_dict(), fp, indent=2)
+
     @staticmethod
     def from_json(json_file_path: str) -> "Scenario":
         """

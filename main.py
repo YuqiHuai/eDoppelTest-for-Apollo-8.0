@@ -89,9 +89,12 @@ def eval_scenario(ind: Scenario):
 
     conflict = ind.has_ad_conflict()
 
+    # save the scenario
+    ind.save_to_file(Path(host_dir, "scenario.json"))
+
     if unique_violation == 0:
         # no unique violation, remove records
-        shutil.rmtree(host_dir)
+        # shutil.rmtree(host_dir)
         pass
 
     return min(min_distance), len(decisions), conflict, unique_violation
